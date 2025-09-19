@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Futuristic SOS Game (AI Unbeatable)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --board-size: 50vw;
+            --max-board-size: 360px;
+            --glow-primary: #00f6ff;
+            --glow-secondary: #ff00ff;
+            --glow-danger: #f53d5a;
+            --glow-success: #39ff14;
+            --glow-last-move: #ffeb3b;
+            --bg-dark: #0a0a14;
+            --bg-panel: rgba(20, 20, 40, 0.7);
+            --border-color: rgba(0, 246, 255, 0.5);
+            --text-color: #e0e0e0;
+        }
+        body { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: var(--bg-dark); font-family: 'Orbitron', sans-serif; color: var(--text-color); padding: 20px; box-sizing: border-box; }
+        body::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: radial-gradient(ellipse at center, rgba(30, 30, 60, 0.4) 0%, transparent 70%); pointer-events: none; z-index: -1; }
+        .main-container { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; }
+        .status-panel { text-align: center; font-size: 1rem; padding: 12px; background-color: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 10px; width: clamp(280px, var(--board-size), var(--max-board-size)); box-shadow: 0 0 8px var(--glow-primary), inset 0 0 8px rgba(0, 246, 255, 0.2); backdrop-filter: blur(5px); }
+        #status-message { min-height: 22px; font-weight: bold; text-shadow: 0 0 5px var(--glow-primary); }
+        .scores { display: flex; justify-content: space-around; width: 100%; margin-top: 8px; font-size: 0.9rem; }
+        #player-score { color: var(--glow-primary); text-shadow: 0 0 5px var(--glow-primary); }
+        #ai-score { color: var(--glow-danger); text-shadow: 0 0 5px var(--glow-danger); }
+        .game-board-container { width: var(--board-size); height: var(--board-size); max-width: var(--max-board-size); max-height: var(--max-board-size); display: grid; grid-template-columns: repeat(7, 1fr); border: 2px solid var(--glow-primary); box-shadow: 0 0 12px var(--glow-primary), 0 0 20px var(--glow-primary); border-radius: 10px; background-color: transparent; padding: 4px; }
+        .cell { display: flex; justify-content: center; align-items: center; background-color: rgba(0, 20, 30, 0.3); border: 1px solid rgba(0, 246, 255, 0.2); border-radius: 3px; cursor: pointer; transition: background-color 0.3s, box-shadow 0.3s; user-select: none; aspect-ratio: 1 / 1; }
+        .cell:hover { background-color: rgba(0, 246, 255, 0.2); box-shadow: 0 0 8px var(--glow-primary); }
+        .cell.last-move { box-shadow: 0 0 10px var(--glow-last-move), inset 0 0 6px rgba(255, 235, 59, 0.4); border-color: var(--glow-last-move); }
+        .cell-content { font-size: clamp(0.8rem, 7vmin, 2rem); line-height: 1; }
+        .symbol-s { color: var(--glow-danger); text-shadow: 0 0 8px var(--glow-danger), 0 0 12px var(--glow-danger); }
+        .symbol-o { color: var(--glow-primary); text-shadow: 0 0 8px var(--glow-primary), 0 0 12px var(--glow-primary); }
+        .action-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
+        .btn { padding: 8px 15px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-panel); color: var(--text-color); cursor: pointer; transition: all 0.2s ease-in-out; box-shadow: 0 0 4px var(--glow-primary), inset 0 0 4px rgba(0, 246, 255, 0.1); text-shadow: 0 0 2px var(--glow-primary); }
+        .btn:hover { background-color: rgba(0, 246, 255, 0.2); box-shadow: 0 0 12px var(--glow-primary), inset 0 0 8px rgba(0, 246, 255, 0.3); }
+        .btn.selected, .btn.active { background-color: var(--glow-primary); color: var(--bg-dark); text-shadow: none; box-shadow: 0 0 12px var(--glow-primary); }
+        #play-btn { border-color: var(--glow-success); box-shadow: 0 0 4px var(--glow-success); text-shadow: 0 0 2px var(--glow-success); }
+        #edit-btn { border-color: var(--glow-secondary); box-shadow: 0 0 4px var(--glow-secondary); text-shadow: 0 0 2px var(--glow-secondary); }
+        #edit-btn.active { background-color: var(--glow-secondary); }
+        .cell.score-player .cell-content { animation: score-pulse-player 0.8s; }
+        .cell.score-ai .cell-content { animation: score-pulse-ai 0.8s; }
+        @keyframes score-pulse-player { 0%, 100% { transform: scale(1); } 50% { color: #fff; transform: scale(1.2); text-shadow: 0 0 20px #fff; } }
+        @keyframes score-pulse-ai { 0%, 100% { transform: scale(1); } 50% { color: #fff; transform: scale(1.2); text-shadow: 0 0 20px #fff; } }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="status-panel">
+            <div id="status-message">Pilih S atau O untuk memulai</div>
+            <div class="scores">
+                <span id="player-score">PLAYER: 0</span>
+                <span id="ai-score">SYSTEM: 0</span>
+            </div>
+        </div>
+        <div class="game-board-container" id="game-board"></div>
+        <div class="action-bar">
+            <button class="btn letter-btn" id="s-btn">S</button>
+            <button class="btn letter-btn" id="o-btn">O</button>
+            <button class="btn" id="play-btn">Play</button>
+            <button class="btn" id="edit-btn">Edit</button>
+            <button class="btn" id="undo-btn">Undo</button>
+            <button class="btn" id="restart-btn">Restart</button>
+        </div>
+    </div>
+    <script>
+        const boardElement = document.getElementById('game-board');
+        const sBtn = document.getElementById('s-btn');
+        const oBtn = document.getElementById('o-btn');
+        const playBtn = document.getElementById('play-btn');
+        const editBtn = document.getElementById('edit-btn');
+        const undoBtn = document.getElementById('undo-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const statusMessage = document.getElementById('status-message');
+        const playerScoreDisplay = document.getElementById('player-score');
+        const aiScoreDisplay = document.getElementById('ai-score');
+        const BOARD_SIZE = 7;
+        let boardState = [];
+        let moveHistory = [];
+        let selectedLetter = null;
+        let isEditMode = false;
+        let gameActive = false;
+        let playerScore = 0;
+        let aiScore = 0;
+        let isPlayerTurn = true;
+        let lastMoveElement = null;
+
+        function initializeBoard() { boardElement.innerHTML = ''; boardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null)); for (let i = 0; i < BOARD_SIZE; i++) { for (let j = 0; j < BOARD_SIZE; j++) { const cell = document.createElement('div'); cell.className = 'cell'; cell.dataset.row = i; cell.dataset.col = j; cell.addEventListener('click', () => onCellClick(i, j)); boardElement.appendChild(cell); } } }
+        function restartGame() { initializeBoard(); moveHistory = []; selectedLetter = null; isEditMode = false; gameActive = false; playerScore = 0; aiScore = 0; isPlayerTurn = true; if (lastMoveElement) { lastMoveElement.classList.remove('last-move'); } lastMoveElement = null; updateScores(); statusMessage.textContent = 'Pilih S atau O untuk memulai'; sBtn.classList.remove('selected'); oBtn.classList.remove('selected'); editBtn.classList.remove('active'); playBtn.disabled = false; editBtn.disabled = false; }
+        
+        sBtn.addEventListener('click', () => selectLetter('S'));
+        oBtn.addEventListener('click', () => selectLetter('O'));
+        editBtn.addEventListener('click', toggleEditMode);
+        playBtn.addEventListener('click', startGameWithButton);
+        undoBtn.addEventListener('click', undoMove);
+        restartBtn.addEventListener('click', restartGame);
+        
+        function selectLetter(letter) { selectedLetter = letter; sBtn.classList.toggle('selected', letter === 'S'); oBtn.classList.toggle('selected', letter === 'O'); }
+        function toggleEditMode() { if (gameActive) return; isEditMode = !isEditMode; editBtn.classList.toggle('active', isEditMode); statusMessage.textContent = isEditMode ? 'Mode Edit: Tempatkan S/O' : 'Keluar dari mode edit'; }
+
+        function startGameWithButton() {
+            if (gameActive) return;
+            gameActive = true;
+            isEditMode = false;
+            editBtn.classList.remove('active');
+            playBtn.disabled = true;
+            editBtn.disabled = true;
+            const isBoardEmpty = boardState.flat().every(cell => cell === null);
+            if (!isBoardEmpty) {
+                isPlayerTurn = false;
+                statusMessage.textContent = 'Sistem memulai...';
+                setTimeout(makeAIMove, 500);
+            } else {
+                isPlayerTurn = true;
+                statusMessage.textContent = 'Giliran Anda.';
+            }
+        }
+
+        function onCellClick(row, col) {
+            if (boardState[row][col] || !selectedLetter) {
+                if (!selectedLetter) statusMessage.textContent = 'Pilih S atau O!';
+                return;
+            }
+            if (isEditMode) {
+                placeLetter(row, col, selectedLetter, 'player');
+            } else {
+                if (!gameActive) {
+                    gameActive = true;
+                    isEditMode = false;
+                    isPlayerTurn = true;
+                    editBtn.classList.remove('active');
+                    playBtn.disabled = true;
+                    editBtn.disabled = true;
+                }
+                if (isPlayerTurn) {
+                    placeAndContinue(row, col, selectedLetter);
+                }
+            }
+        }
+
+        function placeAndContinue(row, col, letter) {
+            if (!gameActive || !isPlayerTurn || boardState[row][col]) return;
+            
+            placeLetter(row, col, letter, 'player');
+            recalculateScores(); 
+
+            if (isBoardFull()) {
+                endGame();
+                return;
+            }
+            
+            isPlayerTurn = false;
+            statusMessage.textContent = 'Sistem berpikir...';
+            setTimeout(makeAIMove, 700);
+        }
+
+        function makeAIMove() {
+            if (!gameActive || isBoardFull()) {
+                if (isBoardFull()) endGame();
+                return;
+            }
+
+            const bestMove = findBestMove();
+
+            if (bestMove) {
+                placeLetter(bestMove.r, bestMove.c, bestMove.letter, 'ai');
+                recalculateScores();
+
+                if (isBoardFull()) {
+                    endGame();
+                    return;
+                }
+                
+                isPlayerTurn = true;
+                statusMessage.textContent = 'Giliran Anda.';
+
+            } else {
+                endGame();
+            }
+        }
+
+        function placeLetter(row, col, letter, player) { moveHistory.push({ row, col, letter, player }); boardState[row][col] = letter; const cell = boardElement.querySelector(`[data-row='${row}'][data-col='${col}']`); if (lastMoveElement) { lastMoveElement.classList.remove('last-move'); } const cellContent = document.createElement('span'); cellContent.className = 'cell-content'; cellContent.textContent = letter; cellContent.classList.add(letter === 'S' ? 'symbol-s' : 'symbol-o'); cell.innerHTML = ''; cell.appendChild(cellContent); cell.classList.add('last-move'); lastMoveElement = cell; }
+        function undoMove() { if (moveHistory.length === 0 || (gameActive && !isPlayerTurn)) return; if (lastMoveElement) { lastMoveElement.classList.remove('last-move'); lastMoveElement = null; } const movesToUndo = (gameActive && moveHistory.length > 1 && moveHistory[moveHistory.length-1].player === 'ai') ? 2 : 1; for(let i=0; i<movesToUndo; i++) { if(moveHistory.length === 0) break; const lastMove = moveHistory.pop(); boardState[lastMove.row][lastMove.col] = null; const cell = boardElement.querySelector(`[data-row='${lastMove.row}'][data-col='${lastMove.col}']`); cell.innerHTML = ''; } if (moveHistory.length > 0) { const newLastMove = moveHistory[moveHistory.length - 1]; const newLastCell = boardElement.querySelector(`[data-row='${newLastMove.row}'][data-col='${newLastMove.col}']`); if (newLastCell) { newLastCell.classList.add('last-move'); lastMoveElement = newLastCell; } } recalculateScores(); statusMessage.textContent = 'Giliran Anda.'; isPlayerTurn = true; }
+        function isValid(r, c) { return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE; }
+        function isBoardFull() { return moveHistory.length >= BOARD_SIZE * BOARD_SIZE; }
+        function endGame() { gameActive = false; let message = ''; if (playerScore > aiScore) message = 'SELAMAT, ANDA MENANG!'; else if (aiScore > playerScore) message = 'SISTEM MENANG!'; else message = 'PERMAINAN SERI!'; statusMessage.textContent = message; playBtn.disabled = false; editBtn.disabled = false; }
+        function updateScores() { playerScoreDisplay.textContent = `PLAYER: ${playerScore}`; aiScoreDisplay.textContent = `SYSTEM: ${aiScore}`; }
+        function checkPotentialSOS(r, c, letter, tempBoard) { let score = 0; const directions = [ { r: -1, c: 0 }, { r: 1, c: 0 }, { r: 0, c: -1 }, { r: 0, c: 1 }, { r: -1, c: -1 }, { r: 1, c: 1 }, { r: -1, c: 1 }, { r: 1, c: -1 } ]; if (letter === 'O') { for (let i = 0; i < directions.length; i += 2) { const d1 = directions[i]; const d2 = directions[i+1]; if (isValid(r+d1.r, c+d1.c) && tempBoard[r+d1.r][c+d1.c] === 'S' && isValid(r+d2.r, c+d2.c) && tempBoard[r+d2.r][c+d2.c] === 'S') { score++; } } } else { for (const dir of directions) { const r1 = r + dir.r, c1 = c + dir.c; const r2 = r + 2 * dir.r, c2 = c + 2 * dir.c; if (isValid(r1, c1) && tempBoard[r1][c1] === 'O' && isValid(r2, c2) && tempBoard[r2][c2] === 'S') { score++; } } } return score; }
+        function recalculateScores() { playerScore = 0; aiScore = 0; const tempBoard = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null)); for(const move of moveHistory) { tempBoard[move.row][move.col] = move.letter; const score = checkPotentialSOS(move.row, move.col, move.letter, tempBoard); if(score > 0) { if(move.player === 'player') playerScore += score; else aiScore += score; } } updateScores(); }
+        
+        // ===================================================================
+        // ======================= AI LOGIC DITINGKATKAN =====================
+        // ===================================================================
+        function findBestMove() {
+            // STRATEGI AI TINGKAT LANJUT
+            // 1. Ambil kemenangan langsung jika tersedia.
+            // 2. Blok kemenangan langsung lawan.
+            // 3. Mainkan langkah "aman" yang tidak memberikan kesempatan lawan untuk mencetak skor.
+            // 4. Jika tidak ada langkah aman, mainkan langkah acak (mode putus asa).
+
+            let possibleMoves = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (!boardState[r][c]) {
+                        possibleMoves.push({ r, c, letter: 'S' });
+                        possibleMoves.push({ r, c, letter: 'O' });
+                    }
+                }
+            }
+            if (possibleMoves.length === 0) return null;
+
+            // 1. Cari langkah kemenangan langsung untuk AI
+            let winningMoves = [];
+            for (const move of possibleMoves) {
+                const { r, c, letter } = move;
+                let tempBoard = boardState.map(row => row.slice());
+                tempBoard[r][c] = letter;
+                const score = checkPotentialSOS(r, c, letter, tempBoard);
+                if (score > 0) {
+                    winningMoves.push({ ...move, score });
+                }
+            }
+            if (winningMoves.length > 0) {
+                // Ambil langkah dengan skor tertinggi
+                return winningMoves.sort((a, b) => b.score - a.score)[0];
+            }
+
+            // 2. Cari langkah untuk memblokir kemenangan langsung pemain
+            let criticalSpots = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (!boardState[r][c]) {
+                        // Periksa apakah pemain bisa mencetak skor dengan 'S' atau 'O' di sel ini
+                        for (const playerLetter of ['S', 'O']) {
+                           let tempBoard = boardState.map(row => row.slice());
+                           tempBoard[r][c] = playerLetter;
+                           if (checkPotentialSOS(r, c, playerLetter, tempBoard) > 0) {
+                               criticalSpots.push({ r, c });
+                               break; // Cukup temukan satu ancaman per sel
+                           }
+                        }
+                    }
+                }
+            }
+
+            if (criticalSpots.length > 0) {
+                const spotToBlock = criticalSpots[0]; // Fokus pada ancaman pertama
+                // Coba blokir dengan 'S' atau 'O' dan pilih yang paling aman
+                const blockingOptions = [
+                    {r: spotToBlock.r, c: spotToBlock.c, letter: 'S'},
+                    {r: spotToBlock.r, c: spotToBlock.c, letter: 'O'}
+                ];
+                let safeBlockingMoves = [];
+                for(const move of blockingOptions) {
+                    let isSafe = true;
+                    let boardAfterBlock = boardState.map(row => row.slice());
+                    boardAfterBlock[move.r][move.c] = move.letter;
+                    // Periksa apakah langkah pemblokiran ini menciptakan peluang baru bagi pemain
+                     for (let nextR = 0; nextR < BOARD_SIZE; nextR++) {
+                        for (let nextC = 0; nextC < BOARD_SIZE; nextC++) {
+                            if (!boardAfterBlock[nextR][nextC]) {
+                                for (const playerReply of ['S', 'O']) {
+                                    let futureBoard = boardAfterBlock.map(row => row.slice());
+                                    futureBoard[nextR][nextC] = playerReply;
+                                    if (checkPotentialSOS(nextR, nextC, playerReply, futureBoard) > 0) {
+                                        isSafe = false; break;
+                                    }
+                                }
+                            }
+                            if (!isSafe) break;
+                        }
+                        if (!isSafe) break;
+                    }
+                    if(isSafe) safeBlockingMoves.push(move);
+                }
+                if (safeBlockingMoves.length > 0) return safeBlockingMoves[0]; // Ambil langkah blokir yang aman
+                return blockingOptions[0]; // Jika tidak ada yang aman, blokir saja
+            }
+
+            // 3. Cari langkah "aman" yang tidak memberi pemain skor pada giliran berikutnya
+            let safeMoves = [];
+            for (const move of possibleMoves) {
+                const { r, c, letter } = move;
+                let tempBoard = boardState.map(row => row.slice());
+                tempBoard[r][c] = letter;
+                let isSafe = true;
+                // Periksa semua sel kosong setelah langkah ini untuk melihat apakah pemain bisa mencetak skor
+                for (let nextR = 0; nextR < BOARD_SIZE; nextR++) {
+                    for (let nextC = 0; nextC < BOARD_SIZE; nextC++) {
+                        if (!tempBoard[nextR][nextC]) {
+                            for (const playerReply of ['S', 'O']) {
+                                let futureBoard = tempBoard.map(row => row.slice());
+                                futureBoard[nextR][nextC] = playerReply;
+                                if (checkPotentialSOS(nextR, nextC, playerReply, futureBoard) > 0) {
+                                    isSafe = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!isSafe) break;
+                    }
+                    if (!isSafe) break;
+                }
+
+                if (isSafe) {
+                    safeMoves.push(move);
+                }
+            }
+
+            if (safeMoves.length > 0) {
+                // Prioritaskan menempatkan 'S' di tempat yang aman, karena 'O' lebih berisiko
+                const safeSMoves = safeMoves.filter(m => m.letter === 'S');
+                if (safeSMoves.length > 0) {
+                    return safeSMoves[Math.floor(Math.random() * safeSMoves.length)];
+                }
+                // Jika tidak ada 'S' yang aman, ambil 'O' yang aman
+                return safeMoves[Math.floor(Math.random() * safeMoves.length)];
+            }
+
+            // 4. Jika tidak ada langkah aman, mainkan langkah acak (langkah putus asa)
+            return possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+        }
+        // ===================================================================
+        // ================== AKHIR DARI LOGIKA AI BARU ======================
+        // ===================================================================
+        
+        window.onload = restartGame;
+    </script>
+</body>
+</html>
+
